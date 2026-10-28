@@ -1,129 +1,99 @@
 # Cloud Workload Forecasting Challenge
 
-AI/ML take-home challenge built from the **Microsoft Azure Public Dataset V2** VM trace.
+This repository contains a reproducible forecasting solution for the fixed
+`data-v1` release of the Microsoft Azure Public Dataset V2 derivative.
 
-## Start here
+## Setup
 
-1. Read [`ASSIGNMENT.md`](ASSIGNMENT.md).
-2. Read [`DATASET.md`](DATASET.md).
-3. Download the **`data-v1` GitHub Release** dataset and extract it as `challenge_data/`.
-4. Read [`SUBMISSION.md`](SUBMISSION.md).
-5. Implement your analysis and forecasting pipeline.
-
-The challenge dataset is distributed as a versioned GitHub Release rather than committed to the repository. The `data-v1` release contains the fixed curated dataset used for this assignment.
-
-## Environment setup
-
-Python **3.11 or newer** is required.
-
-Create a virtual environment:
-
-### Linux / macOS
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-### Windows PowerShell
+Python 3.11 or newer is required.
 
 ```powershell
 py -m venv .venv
-.venv\Scripts\Activate.ps1
-```
-
-### Windows Command Prompt
-
-```cmd
-py -m venv .venv
-.venv\Scripts\activate.bat
-```
-
-Install the project and development dependencies:
-
-```bash
+.\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+The editable project installation is also supported:
+
+```powershell
 python -m pip install -e ".[dev]"
 ```
 
-Verify the installation:
+## Dataset
 
-```bash
+Download `data-v1.tar.gz` from the [data-v1 release](https://github.com/atomityhq/forecasting-challenge/releases/tag/data-v1)
+and extract it into `challenge_data\`. Verify it before use:
+
+```powershell
+cd challenge_data
+sha256sum -c SHA256SUMS
+cd ..
+```
+
+The release contains 10,000 VMs, 134 observations per VM, and five-minute
+sampling. See [DATASET.md](DATASET.md) for the field contract and
+[DATA_CARD_TEMPLATE.md](DATA_CARD_TEMPLATE.md) for provenance.
+
+## Generate the required submission
+
+```powershell
+python src\predict.py --data challenge_data --output predictions.csv
+```
+
+The command constructs the two required aggregate targets, fits only on the
+first 110 timestamps, forecasts the final 24 timestamps, validates the exact
+submission shape, and writes `predictions.csv` without an index.
+
+## Validate the approach
+
+Run leakage-safe expanding-window evaluation on the pre-holdout data:
+
+```powershell
+python src\evaluate.py --data challenge_data --output reports\validation.csv
+```
+
+Because this challenge publishes the holdout labels, you can separately
+inspect the final prediction score after generating `predictions.csv`:
+
+```powershell
+python src\evaluate.py --data challenge_data --public-holdout --predictions predictions.csv
+```
+
+This is an analysis-only score, not a model-selection score. It compares the
+submitted forecast with the public labels and reports the persistence baseline.
+Generate report figures and the same score with:
+
+```powershell
+python src\make_report_assets.py --data challenge_data --predictions predictions.csv
+```
+
+Run tests:
+
+```powershell
 python -m pytest -q
 ```
 
-The repository includes a small test suite covering the starter forecasting utilities. Run it before beginning the assignment.
+## Implementation
 
-## Dataset download
+- [`src/data.py`](src/data.py): ingestion, validation, aggregation, and
+  chronological splitting.
+- [`src/features.py`](src/features.py): lag and rolling CPU features.
+- [`src/model.py`](src/model.py): persistence fleet forecast and recursive
+  Ridge CPU forecast.
+- [`src/evaluate.py`](src/evaluate.py): expanding-window baseline comparison.
+- [`src/make_report_assets.py`](src/make_report_assets.py): report PNGs and
+  public-holdout scoring.
+- [`src/predict.py`](src/predict.py): reproducible submission CLI.
+- [`reports/final_report.md`](reports/final_report.md): analysis,
+  methodology, validation, limitations, and operational recommendation.
 
-The hiring dataset is distributed as the fixed `data-v1` release of this repository.
+The notebooks are exploratory test artifacts and are not required to generate
+the submission.
 
-**Download:** [Azure Dataset v1 Release](https://github.com/atomityhq/forecasting-challenge/releases/tag/data-v1)
+## Source and attribution
 
-Download `data-v1.tar.gz` from the release and extract it into the repository as `challenge_data/`:
-
-```bash
-mkdir -p challenge_data
-tar -xzf data-v1.tar.gz -C challenge_data
-```
-
-The resulting layout is:
-
-```text
-challenge_data/
-├── vm_cpu_readings.csv.gz
-├── vm_metadata.csv.gz
-├── DATA_CARD.md
-└── SHA256SUMS
-```
-
-Verify the dataset before starting the assignment:
-
-```bash
-cd challenge_data
-sha256sum -c SHA256SUMS
-```
-
-You should see:
-
-```text
-vm_cpu_readings.csv.gz: OK
-vm_metadata.csv.gz: OK
-DATA_CARD.md: OK
-```
-
-The release is a real, curated subset of the Microsoft Azure Public Dataset V2. It is not synthetic data.
-
-The dataset contains 10,000 VMs with 134 CPU measurements per VM at five-minute intervals, for a total of 1,340,000 CPU observations.
-
-Use the exact `data-v1` release provided for this assignment. Do not substitute another dataset or a different version of the Azure Public Dataset.
-
-## What you are solving
-
-The underlying data contains anonymized VM workload telemetry sampled every five minutes. Your job is to understand the workload and build a defensible forecasting pipeline for near-term aggregate demand.
-
-The challenge is intentionally open-ended. We evaluate reasoning, time-series methodology, leakage prevention, error analysis, reproducibility, and the quality of your operational conclusions—not just model complexity.
-
-## Expected environment
-
-Python 3.11+ is recommended.
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e '.[dev]'
-pytest -q
-```
-
-Model dependencies are intentionally not prescribed. Add only what you need and document them.
-
-## Source
-
-Microsoft Azure Public Dataset V2:
-https://github.com/Azure/AzurePublicDataset
-
-The official V2 documentation describes a 30-day VM trace with five-minute CPU readings, VM metadata, and encrypted subscription/deployment/VM identifiers. The full upstream trace is much larger than this challenge release.
-
-## Submission
-
-Submit your work as a repository or archive according to [`SUBMISSION.md`](SUBMISSION.md).
+The data is a curated derivative of the
+[Microsoft Azure Public Dataset V2](https://github.com/Azure/AzurePublicDataset).
+See [SOURCES.md](SOURCES.md), [DATA_RELEASE.md](DATA_RELEASE.md), and the
+upstream license and usage terms.

@@ -2,3 +2,18 @@
 .venv/
 .pytest_cache/
 __pycache__/
+.ipynb_checkpoints/
+*.pyc
+.env
+.vscode/
+.DS_Store
+
+# The challenge release is downloaded separately and must not be committed.
+challenge_data/
+
+# Notebook-only artifacts. The root predictions.csv is a required deliverable.
+notebooks/test_media/
+
+# Reproducible evaluation output.
+reports/validation.csv
+reports/predictions.csv
